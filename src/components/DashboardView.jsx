@@ -8,7 +8,7 @@ import {
   Zap, 
   BrainCircuit,
   Bot,
-  PlayCircle
+  MessageSquare
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
@@ -48,7 +48,7 @@ export default function DashboardView({
           className="btn-primary"
           onClick={onOpenVoiceMentor}
         >
-          <Bot size={18} />
+          <MessageSquare size={18} />
           <span>Ask AI Mentor</span>
         </button>
       </div>
@@ -182,8 +182,8 @@ export default function DashboardView({
               onClick={onOpenVoiceMentor}
               style={{ fontSize: '0.8rem', padding: '6px 12px', background: '#E4EFE7', borderColor: '#C5DCCC', color: '#275239' }}
             >
-              <PlayCircle size={14} color="#3F7D58" />
-              <span>Voice Mentor</span>
+              <MessageSquare size={14} color="#3F7D58" />
+              <span>AI Mentor Chat</span>
             </button>
           </div>
         </div>

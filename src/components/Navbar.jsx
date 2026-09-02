@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, User, Mic, Compass } from 'lucide-react';
+import { Sparkles, User, MessageSquare, Compass } from 'lucide-react';
 
 export default function Navbar({ studentProfile, onOpenProfile, onOpenVoiceMentor }) {
   return (
@@ -76,10 +76,10 @@ export default function Navbar({ studentProfile, onOpenProfile, onOpenVoiceMento
             id="voice-mentor-nav-btn"
             className="btn-secondary" 
             onClick={onOpenVoiceMentor}
-            style={{ borderColor: '#E8D5C4', background: '#F4EBE2', color: '#8C5E32' }}
+            style={{ borderColor: '#C5DCCC', background: '#E4EFE7', color: '#275239' }}
           >
-            <Mic size={16} color="#D4A373" />
-            <span>Voice Mentor AI</span>
+            <MessageSquare size={16} color="#3F7D58" />
+            <span>AI Mentor Chat</span>
           </button>
 
           <button 
