@@ -12,6 +12,19 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
+// Live days-remaining calculator
+function daysUntil(dateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+}
+
+// Next upcoming exam (JEE Main 2027 Session 1)
+const NEXT_EXAM_DATE = '2027-01-20';
+const NEXT_EXAM_LABEL = 'JEE Main 2027 · Session 1';
+
 export default function DashboardView({ 
   studentProfile, 
   setActiveTab, 
@@ -49,7 +62,7 @@ export default function DashboardView({
           onClick={onOpenVoiceMentor}
         >
           <MessageSquare size={18} />
-          <span>Ask AI Mentor</span>
+          <span>Ask Eshva</span>
         </button>
       </div>
 
@@ -108,11 +121,11 @@ export default function DashboardView({
               <Calendar size={20} color="#D4A373" />
             </div>
             <div style={{ fontSize: '2.25rem', fontWeight: 800, color: '#D4A373', marginBottom: '4px' }}>
-              12 days
+              {daysUntil(NEXT_EXAM_DATE)} days
             </div>
           </div>
           <p style={{ fontSize: '0.775rem', color: '#4A5B4F' }}>
-            CUET / JEE registration reminder
+            {NEXT_EXAM_LABEL}
           </p>
         </div>
 
@@ -183,7 +196,7 @@ export default function DashboardView({
               style={{ fontSize: '0.8rem', padding: '6px 12px', background: '#E4EFE7', borderColor: '#C5DCCC', color: '#275239' }}
             >
               <MessageSquare size={14} color="#3F7D58" />
-              <span>AI Mentor Chat</span>
+              <span>Chat with Eshva</span>
             </button>
           </div>
         </div>
@@ -258,8 +271,8 @@ export default function DashboardView({
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Bot size={16} color="#8C5E32" />
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#243027' }}>Voice AI Counseling Session</div>
-                  <div style={{ fontSize: '0.725rem', color: '#6B7D70' }}>Ask doubts about JEE/CUET roadmap</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#243027' }}>Chat with Eshva</div>
+                  <div style={{ fontSize: '0.725rem', color: '#6B7D70' }}>Ask Eshva about JEE/CUET roadmap</div>
                 </div>
               </div>
               <button className="btn-secondary" onClick={onOpenVoiceMentor} style={{ fontSize: '0.75rem', padding: '4px 10px' }}>

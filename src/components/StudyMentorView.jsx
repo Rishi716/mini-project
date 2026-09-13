@@ -1,22 +1,40 @@
-import React, { useState } from 'react';
-import { Bot, Mic, CheckCircle2, Circle, Zap, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bot, Mic, CheckCircle2, Circle, Zap, Users, CloudUpload } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api/client';
+
+const DEFAULT_TASKS = [
+  { id: 1, title: 'Solve 10 Practice Questions on Binary Search Trees', category: 'Lesson', isCompleted: true },
+  { id: 2, title: 'Revise Physics Weightage Topics for JEE / CUET', category: 'Revision', isCompleted: false },
+  { id: 3, title: 'Take 5-Min Career Aptitude Quiz', category: 'Quiz', isCompleted: false },
+  { id: 4, title: 'Review ATS Resume Keywords for Software Engineer Role', category: 'Project', isCompleted: false }
+];
 
 export default function StudyMentorView({ 
   studentProfile, 
   onOpenVoiceMentor,
   onOpenQuiz 
 }) {
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('plan');
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Solve 10 Practice Questions on Binary Search Trees', category: 'Lesson', isCompleted: true },
-    { id: 2, title: 'Revise Physics Weightage Topics for JEE / CUET', category: 'Revision', isCompleted: false },
-    { id: 3, title: 'Take 5-Min Career Aptitude Quiz', category: 'Quiz', isCompleted: false },
-    { id: 4, title: 'Review ATS Resume Keywords for Software Engineer Role', category: 'Project', isCompleted: false }
-  ]);
+  const [tasks, setTasks] = useState(DEFAULT_TASKS);
+  const [synced, setSynced] = useState(false);
 
-  const toggleTask = (id) => {
-    setTasks(tasks.map(t => {
+  // Load tasks from backend for authenticated users
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    api.getProgress()
+      .then(({ progress }) => {
+        if (progress?.tasks && progress.tasks.length > 0) {
+          setTasks(progress.tasks);
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
+
+  const toggleTask = async (id) => {
+    const updatedTasks = tasks.map(t => {
       if (t.id === id) {
         const updated = !t.isCompleted;
         if (updated) {
@@ -25,7 +43,18 @@ export default function StudyMentorView({
         return { ...t, isCompleted: updated };
       }
       return t;
-    }));
+    });
+    setTasks(updatedTasks);
+
+    if (isAuthenticated) {
+      try {
+        await api.updateTasks(updatedTasks);
+        setSynced(true);
+        setTimeout(() => setSynced(false), 3000);
+      } catch (err) {
+        console.warn('Task sync failed:', err.message);
+      }
+    }
   };
 
   const completedCount = tasks.filter(t => t.isCompleted).length;
@@ -54,6 +83,11 @@ export default function StudyMentorView({
           <Mic size={16} />
           <span>Launch Live Voice AI</span>
         </button>
+        {synced && (
+          <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>
+            <CloudUpload size={11} /> Tasks Synced to Backend
+          </span>
+        )}
       </div>
 
       {/* Navigation Sub-Tabs */}
@@ -172,32 +206,79 @@ export default function StudyMentorView({
                 Parent View & Progress Dashboard
               </h3>
               <p style={{ fontSize: '0.8rem', color: '#6B7D70' }}>
-                Transparent reports, target exam deadlines, and support guidance for parents.
+                Transparent progress reports for <strong>{studentProfile.name}</strong>'s guardian.
               </p>
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginTop: '20px' }}>
+
+            {/* Student summary */}
             <div style={{ padding: '16px', background: '#F4F7F1', borderRadius: '12px', border: '1px solid #E2E4D8' }}>
-              <span style={{ fontSize: '0.75rem', color: '#6B7D70' }}>Overall Weekly Engagement</span>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#3F7D58', margin: '4px 0' }}>8.4 hrs</div>
-              <p style={{ fontSize: '0.75rem', color: '#275239' }}>↑ +1.2 hrs more study time than last week</p>
+              <span style={{ fontSize: '0.75rem', color: '#6B7D70', fontWeight: 600 }}>Student Profile</span>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#243027', margin: '6px 0 2px' }}>{studentProfile.name}</div>
+              <div style={{ fontSize: '0.8rem', color: '#3F7D58', fontWeight: 600 }}>{studentProfile.stage}</div>
+              <div style={{ fontSize: '0.75rem', color: '#6B7D70', marginTop: '4px' }}>Target: {studentProfile.targetDomain}</div>
             </div>
 
+            {/* Daily Task Progress */}
             <div style={{ padding: '16px', background: '#F4F7F1', borderRadius: '12px', border: '1px solid #E2E4D8' }}>
-              <span style={{ fontSize: '0.75rem', color: '#6B7D70' }}>Top Strengths</span>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                <span className="badge badge-green">Logical Aptitude</span>
-                <span className="badge badge-cyan">Python Basics</span>
+              <span style={{ fontSize: '0.75rem', color: '#6B7D70', fontWeight: 600 }}>Today's Task Completion</span>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#3F7D58', margin: '4px 0' }}>
+                {completedCount} / {tasks.length}
+              </div>
+              <div style={{ background: '#C5DCCC', borderRadius: '999px', height: '6px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.round((completedCount / tasks.length) * 100)}%`,
+                  background: '#3F7D58', height: '100%', borderRadius: '999px',
+                  transition: 'width 0.5s ease'
+                }} />
+              </div>
+              <p style={{ fontSize: '0.72rem', color: '#275239', marginTop: '6px' }}>
+                {Math.round((completedCount / tasks.length) * 100)}% of today's study plan completed
+              </p>
+            </div>
+
+            {/* Pending Tasks */}
+            <div style={{ padding: '16px', background: '#F4F7F1', borderRadius: '12px', border: '1px solid #E2E4D8' }}>
+              <span style={{ fontSize: '0.75rem', color: '#6B7D70', fontWeight: 600 }}>Pending Tasks</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                {tasks.filter(t => !t.isCompleted).length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: '#3F7D58', fontWeight: 600 }}>🎉 All tasks completed today!</p>
+                ) : (
+                  tasks.filter(t => !t.isCompleted).map(t => (
+                    <div key={t.id} style={{ fontSize: '0.75rem', color: '#4A5B4F', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#D4A373' }}>●</span> {t.title}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
-            <div style={{ padding: '16px', background: '#F4F7F1', borderRadius: '12px', border: '1px solid #E2E4D8' }}>
-              <span style={{ fontSize: '0.75rem', color: '#6B7D70' }}>Area for Parent Support</span>
-              <p style={{ fontSize: '0.825rem', color: '#243027', marginTop: '6px' }}>
-                Encourage practice in <strong>Physics Numerical Speed</strong> before upcoming CUET/JEE deadlines.
-              </p>
+            {/* Parent contact info */}
+            <div style={{ padding: '16px', background: '#FFF8EE', borderRadius: '12px', border: '1px solid #F5D9A3' }}>
+              <span style={{ fontSize: '0.75rem', color: '#8C5E32', fontWeight: 700 }}>🛡️ Safety Contact on Record</span>
+              <div style={{ marginTop: '8px' }}>
+                {studentProfile.parentName || studentProfile.parentEmail ? (
+                  <>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#243027' }}>
+                      {studentProfile.parentName || 'Not set'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#6B7D70', marginTop: '2px' }}>
+                      {studentProfile.parentEmail || 'No email set'}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#3F7D58', marginTop: '6px', fontWeight: 600 }}>
+                      ✅ Will receive Eshva safety alerts
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ fontSize: '0.8rem', color: '#8C5E32' }}>
+                    ⚠️ No parent contact set. Please update in Edit Profile.
+                  </p>
+                )}
+              </div>
             </div>
+
           </div>
         </div>
       )}

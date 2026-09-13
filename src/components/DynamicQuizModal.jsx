@@ -1,12 +1,29 @@
-import React, { useState } from 'react';
-import { Zap, X, CheckCircle2, AlertCircle, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, X, CheckCircle2, AlertCircle, Award, Loader2, CloudUpload } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api/client';
 
 export default function DynamicQuizModal({ isOpen, onClose, studentProfile }) {
+  const { isAuthenticated } = useAuth();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [score, setScore] = useState(0);
   const [quizFinished, setQuizFinished] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Reset quiz state each time the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentIdx(0);
+      setSelectedOption(null);
+      setScore(0);
+      setQuizFinished(false);
+      setSaving(false);
+      setSaved(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -64,7 +81,37 @@ export default function DynamicQuizModal({ isOpen, onClose, studentProfile }) {
     } else {
       setQuizFinished(true);
       confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+      if (isAuthenticated) {
+        setSaving(true);
+        api.saveQuizScore({
+          score,
+          total: quizQuestions.length,
+          domain: studentProfile.targetDomain,
+        })
+          .then(() => setSaved(true))
+          .catch(() => setSaved(false))
+          .finally(() => setSaving(false));
+      }
     }
+  };
+
+  const handleSaveAndClose = async () => {
+    if (!saved && isAuthenticated && !saving) {
+      setSaving(true);
+      try {
+        await api.saveQuizScore({
+          score,
+          total: quizQuestions.length,
+          domain: studentProfile.targetDomain,
+        });
+        setSaved(true);
+      } catch (err) {
+        console.warn('Quiz save failed:', err.message);
+      } finally {
+        setSaving(false);
+      }
+    }
+    onClose();
   };
 
   const handleResetQuiz = () => {
@@ -186,8 +233,17 @@ export default function DynamicQuizModal({ isOpen, onClose, studentProfile }) {
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
               <button className="btn-secondary" onClick={handleResetQuiz}>Retake Quiz</button>
-              <button className="btn-primary" onClick={onClose}>Close & Save Score</button>
+              <button className="btn-primary" onClick={handleSaveAndClose} disabled={saving}>
+                {saving ? <Loader2 size={16} className="spin" /> : <CloudUpload size={16} />}
+                <span>{saving ? 'Saving to backend...' : 'Close & Save Score'}</span>
+              </button>
             </div>
+
+            {isAuthenticated && (
+              <p style={{ fontSize: '0.72rem', color: saved ? '#3F7D58' : '#8C5E32', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                {saved ? '✅ Score synced to your backend profile' : '⚠️ Your score will sync when you save'}
+              </p>
+            )}
           </div>
         )}
 

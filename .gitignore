@@ -4,3 +4,11 @@ dist
 .env.local
 
 .vercel
+
+# Logs
+*.log
+dev.err.log
+server.err.log
+
+# Backend JSON storage fallback
+server/data/

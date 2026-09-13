@@ -1,12 +1,15 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { BriefcaseBusiness, FileText, Upload, Sparkles, Award, Mic, MicOff, Volume2, FileCheck, AlertTriangle, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
+import { BriefcaseBusiness, FileText, Upload, Sparkles, Award, Mic, MicOff, Volume2, FileCheck, AlertTriangle, CheckCircle2, XCircle, Trash2, ExternalLink, CloudUpload } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useAuth } from '../context/AuthContext.jsx';
+import { api } from '../api/client';
 
 // Configure pdfjs worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export default function PlacementLabView({ studentProfile }) {
+  const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState('ats');
   
   // PDF Upload & ATS State
@@ -14,6 +17,7 @@ export default function PlacementLabView({ studentProfile }) {
   const [extractedText, setExtractedText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [atsReport, setAtsReport] = useState(null);
+  const [atsSynced, setAtsSynced] = useState(false);
   const fileInputRef = useRef(null);
 
   // Mock Interview State
@@ -30,15 +34,42 @@ export default function PlacementLabView({ studentProfile }) {
   const interviewQuestions = [
     {
       q: "Explain the difference between process and thread in operating systems, and how concurrency is achieved.",
-      tips: "Focus on memory space sharing, context switching overhead, and thread safety."
+      tips: "Focus on memory space sharing, context switching overhead, and thread safety.",
+      rubric: {
+        keywords: ['process', 'thread', 'memory', 'context switch', 'concurrent', 'shared', 'independent', 'pcb', 'heap', 'stack', 'synchronization', 'mutex', 'semaphore', 'race condition', 'deadlock'],
+        minWords: 50,
+        hints: [
+          { kw: 'memory', tip: 'Describe how processes have isolated memory while threads share heap space.' },
+          { kw: 'mutex', tip: 'Mentioning synchronization primitives (mutex, semaphore) scores extra points.' },
+          { kw: 'context switch', tip: 'Explain why thread context switches are faster than process switches.' },
+        ]
+      }
     },
     {
       q: "How would you optimize a slow database query handling millions of user records?",
-      tips: "Mention indexing (B-Trees), query execution plans, caching (Redis), and normalization/denormalization."
+      tips: "Mention indexing (B-Trees), query execution plans, caching (Redis), and normalization/denormalization.",
+      rubric: {
+        keywords: ['index', 'b-tree', 'cache', 'redis', 'query', 'explain', 'normalization', 'denormalization', 'partition', 'shard', 'read replica', 'pagination', 'join', 'select', 'sql', 'nosql'],
+        minWords: 40,
+        hints: [
+          { kw: 'index', tip: 'Explain the difference between clustered and non-clustered indexes.' },
+          { kw: 'cache', tip: 'Mention caching strategies like Redis or Memcached to reduce DB load.' },
+          { kw: 'shard', tip: 'Horizontal sharding and read replicas are important for scale.' },
+        ]
+      }
     },
     {
       q: "Describe a complex technical project you built, the challenges faced, and how you resolved them.",
-      tips: "Use the STAR method (Situation, Task, Action, Result)."
+      tips: "Use the STAR method (Situation, Task, Action, Result).",
+      rubric: {
+        keywords: ['project', 'built', 'challenge', 'problem', 'solution', 'result', 'team', 'deployed', 'api', 'database', 'frontend', 'backend', 'improved', 'optimized', 'learned'],
+        minWords: 60,
+        hints: [
+          { kw: 'result', tip: 'Always quantify your impact (e.g. reduced load time by 40%).' },
+          { kw: 'challenge', tip: 'Be specific about the technical obstacle — interviewers love specificity.' },
+          { kw: 'team', tip: 'Mention collaboration and your specific individual contribution.' },
+        ]
+      }
     }
   ];
 
@@ -61,6 +92,22 @@ export default function PlacementLabView({ studentProfile }) {
       'sql', 'trading', 'corporate finance', 'portfolio', 'cfa', 'risk analysis'
     ]
   };
+
+  const hiringCompanies = [
+    { name: 'Google', roles: ['Software Engineer', 'Data Scientist'], pkg: '₹35-60 LPA', locations: ['Bangalore', 'Hyderabad'], domains: ['Computer Science & AI', 'Data Science & Analytics'], portal: 'https://careers.google.com' },
+    { name: 'Microsoft', roles: ['SDE', 'Cloud Architect'], pkg: '₹30-50 LPA', locations: ['Hyderabad', 'Noida'], domains: ['Computer Science & AI', 'Cybersecurity & Hacking'], portal: 'https://careers.microsoft.com' },
+    { name: 'JP Morgan', roles: ['Quant Analyst', 'Risk Manager'], pkg: '₹20-35 LPA', locations: ['Mumbai', 'Bangalore'], domains: ['Fintech & Finance', 'Data Science & Analytics'], portal: 'https://careers.jpmorgan.com' },
+    { name: 'Goldman Sachs', roles: ['Financial Analyst', 'SDE'], pkg: '₹25-45 LPA', locations: ['Bangalore'], domains: ['Fintech & Finance', 'Computer Science & AI'], portal: 'https://www.goldmansachs.com/careers' },
+    { name: 'Palo Alto', roles: ['Security Engineer', 'Threat Analyst'], pkg: '₹25-40 LPA', locations: ['Bangalore'], domains: ['Cybersecurity & Hacking'], portal: 'https://jobs.paloaltonetworks.com' },
+    { name: 'CrowdStrike', roles: ['SecOps', 'Malware Researcher'], pkg: '₹30-55 LPA', locations: ['Pune'], domains: ['Cybersecurity & Hacking'], portal: 'https://www.crowdstrike.com/careers' },
+    { name: 'Mu Sigma', roles: ['Data Scientist', 'Decision Scientist'], pkg: '₹10-15 LPA', locations: ['Bangalore'], domains: ['Data Science & Analytics'], portal: 'https://www.mu-sigma.com/careers' },
+    { name: 'Fractal', roles: ['Data Engineer', 'AI Consultant'], pkg: '₹12-25 LPA', locations: ['Mumbai', 'Gurgaon'], domains: ['Data Science & Analytics'], portal: 'https://fractal.ai/careers' },
+    { name: 'Novartis', roles: ['Clinical Data', 'Bioinformatician'], pkg: '₹15-28 LPA', locations: ['Hyderabad'], domains: ['Medical & Biotech'], portal: 'https://www.novartis.com/careers' },
+    { name: 'GE Healthcare', roles: ['Biomedical Engg', 'Product Manager'], pkg: '₹12-22 LPA', locations: ['Bangalore'], domains: ['Medical & Biotech', 'Design & Product UI/UX'], portal: 'https://careers.gehealthcare.com' },
+    { name: 'Adobe', roles: ['UI/UX Designer', 'Product Designer'], pkg: '₹20-40 LPA', locations: ['Noida', 'Bangalore'], domains: ['Design & Product UI/UX', 'Computer Science & AI'], portal: 'https://careers.adobe.com' },
+    { name: 'Atlassian', roles: ['Product Designer', 'SDE'], pkg: '₹40-75 LPA', locations: ['Bangalore'], domains: ['Design & Product UI/UX', 'Computer Science & AI'], portal: 'https://www.atlassian.com/company/careers' },
+    { name: 'TCS / Infosys', roles: ['System Engineer', 'Analyst'], pkg: '₹4-8 LPA', locations: ['Pan India'], domains: ['Computer Science & AI', 'Fintech & Finance', 'Medical & Biotech', 'Data Science & Analytics', 'Cybersecurity & Hacking', 'Design & Product UI/UX'], portal: 'https://www.tcs.com/careers' }
+  ];
 
   // PDF Text Extraction Handler
   const handleFileChange = async (e) => {
@@ -158,6 +205,12 @@ export default function PlacementLabView({ studentProfile }) {
         summary: `Your PDF resume "${uploadedFile.name}" was parsed successfully. It demonstrates strong foundations for ${targetDomain} with an ATS score of ${finalScore}%. Incorporating the missing keywords highlighted below will push your resume into top Tier-1 recruiter shortlists.`
       });
 
+      if (isAuthenticated) {
+        api.saveAtsScore({ score: finalScore, domain: targetDomain, fileName: uploadedFile.name })
+          .then(() => setAtsSynced(true))
+          .catch(() => setAtsSynced(false));
+      }
+
       confetti({ particleCount: 60, spread: 80, origin: { y: 0.7 } });
     }, 1200);
   };
@@ -170,10 +223,42 @@ export default function PlacementLabView({ studentProfile }) {
   };
 
   const handleEvaluateAnswer = () => {
+    if (!userAnswer.trim()) return;
+
+    const rubric = interviewQuestions[currentQuestionIdx].rubric;
+    const answerLower = userAnswer.toLowerCase();
+    const wordCount = userAnswer.trim().split(/\s+/).length;
+
+    // Count how many rubric keywords are present
+    const matchedKws = rubric.keywords.filter(kw => answerLower.includes(kw.toLowerCase()));
+    const keywordScore = Math.min(10, Math.round((matchedKws.length / rubric.keywords.length) * 10 * 1.5));
+
+    // Length bonus
+    const lengthBonus = wordCount >= rubric.minWords ? 1.5 : wordCount >= rubric.minWords / 2 ? 0.75 : 0;
+
+    // Structure bonus: checks for numbered points, colons, etc.
+    const structureBonus = /\d\.\s|:\s|\n/.test(userAnswer) ? 1 : 0;
+
+    const rawScore = Math.min(10, parseFloat((keywordScore * 0.6 + lengthBonus + structureBonus + 5).toFixed(1)));
+    const finalScore = Math.max(4, rawScore);
+
+    // Build feedback from missed hints
+    const missedHints = rubric.hints.filter(h => !answerLower.includes(h.kw.toLowerCase()));
+    const improvementTip = missedHints.length > 0
+      ? missedHints[0].tip
+      : 'Great coverage! Try using structured points (1. 2. 3.) and quantified metrics for senior-level answers.';
+
+    const strengths = matchedKws.length > 0
+      ? `Good coverage of: ${matchedKws.slice(0, 4).join(', ')}. Answer length is ${wordCount >= rubric.minWords ? 'sufficient' : 'brief but focused'}.`
+      : 'You attempted the question. Try incorporating more technical terminology for a stronger response.';
+
     setFeedback({
-      score: '8.5 / 10',
-      strengths: 'Clear explanation of memory isolation and thread synchronization concepts.',
-      improvement: 'Mention specific OS primitives like mutexes or semaphores for extra points.'
+      score: `${finalScore.toFixed(1)} / 10`,
+      strengths,
+      improvement: improvementTip,
+      matchedCount: matchedKws.length,
+      totalKeywords: rubric.keywords.length,
+      wordCount,
     });
   };
 
@@ -308,6 +393,23 @@ export default function PlacementLabView({ studentProfile }) {
           >
             AI Mock Interview
           </button>
+
+          {studentProfile.stage === 'Placement Stage' && (
+            <button 
+              id="tab-hiring-companies"
+              className="btn-secondary"
+              onClick={() => setActiveTab('companies')}
+              style={{ 
+                background: activeTab === 'companies' ? '#3F7D58' : 'transparent',
+                color: activeTab === 'companies' ? '#FFF' : '#4A5B4F',
+                border: 'none',
+                fontSize: '0.8rem',
+                padding: '6px 14px'
+              }}
+            >
+              Hiring Companies
+            </button>
+          )}
         </div>
       </div>
 
@@ -487,9 +589,15 @@ export default function PlacementLabView({ studentProfile }) {
                   </div>
                 </div>
 
-                <div style={{ padding: '14px', background: '#F4F7F1', borderRadius: '10px', border: '1px solid #E2E4D8', fontSize: '0.825rem', color: '#4A5B4F', lineHeight: 1.5 }}>
-                  <strong>AI Summary & Recommendations:</strong> {atsReport.summary}
-                </div>
+<div style={{ padding: '14px', background: '#F4F7F1', borderRadius: '10px', border: '1px solid #E2E4D8', fontSize: '0.825rem', color: '#4A5B4F', lineHeight: 1.5 }}>
+  <strong>AI Summary & Recommendations:</strong> {atsReport.summary}
+</div>
+
+{isAuthenticated && atsSynced && (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#3F7D58', fontWeight: 600 }}>
+    <CloudUpload size={13} /> ATS score saved to your backend progress
+  </div>
+)}
               </div>
             ) : (
               <div style={{ textAlign: 'center', padding: '50px 20px', color: '#6B7D70' }}>
@@ -505,7 +613,7 @@ export default function PlacementLabView({ studentProfile }) {
           </div>
 
         </div>
-      ) : (
+      ) : activeTab === 'interview' ? (
         /* AI Mock Interview Room */
         <div className="glass-card" style={{ padding: '28px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -626,22 +734,95 @@ export default function PlacementLabView({ studentProfile }) {
 
           {/* AI Scorecard & Feedback */}
           {feedback && (
-            <div style={{ padding: '16px', background: '#E4EFE7', borderRadius: '12px', border: '1px solid #C5DCCC' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#275239' }}>AI Feedback Score</span>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3F7D58' }}>{feedback.score}</span>
+            <div style={{ padding: '18px', background: '#E4EFE7', borderRadius: '12px', border: '1px solid #C5DCCC' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#275239' }}>✨ Eshva AI Feedback Score</span>
+                <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#3F7D58' }}>{feedback.score}</span>
               </div>
-              <p style={{ fontSize: '0.825rem', color: '#4A5B4F', marginBottom: '4px' }}>
-                <strong>Key Strengths:</strong> {feedback.strengths}
+
+              {/* Score progress bar */}
+              <div style={{ background: '#C5DCCC', borderRadius: '999px', height: '8px', marginBottom: '12px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${(parseFloat(feedback.score) / 10) * 100}%`,
+                  background: 'linear-gradient(90deg, #3F7D58, #84A98C)',
+                  height: '100%', borderRadius: '999px', transition: 'width 0.8s ease'
+                }} />
+              </div>
+
+              {/* Stats row */}
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <span className="badge badge-cyan" style={{ fontSize: '0.7rem' }}>
+                  🎯 {feedback.matchedCount}/{feedback.totalKeywords} Keywords Matched
+                </span>
+                <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+                  📝 {feedback.wordCount} Words Written
+                </span>
+              </div>
+
+              <p style={{ fontSize: '0.825rem', color: '#275239', marginBottom: '6px', lineHeight: 1.5 }}>
+                <strong>✅ Strengths:</strong> {feedback.strengths}
               </p>
-              <p style={{ fontSize: '0.825rem', color: '#8C5E32' }}>
-                <strong>Improvement Hint:</strong> {feedback.improvement}
+              <p style={{ fontSize: '0.825rem', color: '#8C5E32', lineHeight: 1.5 }}>
+                <strong>💡 Next Improvement:</strong> {feedback.improvement}
               </p>
             </div>
           )}
 
         </div>
-      )}
+      ) : activeTab === 'companies' ? (
+        /* Hiring Companies Tab */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: '#E4EFE7', borderRadius: '10px', border: '1px solid #C5DCCC' }}>
+            <BriefcaseBusiness size={14} color="#3F7D58" />
+            <span style={{ fontSize: '0.75rem', color: '#275239', fontWeight: 600 }}>
+              💡 Showing top hiring companies for <strong>{studentProfile.targetDomain}</strong>
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {hiringCompanies.filter(c => c.domains.includes(studentProfile.targetDomain)).length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#6B7D70', marginTop: '20px', gridColumn: '1 / -1' }}>No specific companies found for {studentProfile.targetDomain}.</p>
+            ) : hiringCompanies.filter(c => c.domains.includes(studentProfile.targetDomain)).map((company, idx) => (
+              <div key={idx} className="glass-card" 
+                onClick={() => window.open(company.portal, '_blank', 'noopener,noreferrer')}
+                style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'pointer', transition: 'all 0.2s ease' }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='#3F7D58';e.currentTarget.style.transform='translateY(-2px)';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='#E2E4D8';e.currentTarget.style.transform='translateY(0)';}}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#243027' }}>{company.name}</h3>
+                  <span style={{ background: '#FFF8EE', color: '#8C5E32', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                    {company.pkg}
+                  </span>
+                </div>
+                
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: '#6B7D70', marginBottom: '4px', fontWeight: 600 }}>Top Roles:</div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {company.roles.map(r => (
+                      <span key={r} style={{ background: '#F0F2EA', color: '#4A5B4F', padding: '2px 8px', borderRadius: '999px', fontSize: '0.7rem' }}>
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: '#6B7D70', marginBottom: '4px', fontWeight: 600 }}>Locations:</div>
+                  <span style={{ fontSize: '0.8rem', color: '#243027' }}>{company.locations.join(', ')}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px' }}>
+                  <span style={{ fontSize: '0.68rem', color: '#6B7D70' }}>{company.portal.replace('https://','').replace('http://','').split('/')[0]}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#3F7D58', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <ExternalLink size={11} /> Open Portal
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
     </div>
   );
