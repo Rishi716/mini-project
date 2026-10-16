@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Target, 
   CheckCircle2, 
@@ -8,9 +8,11 @@ import {
   Zap, 
   BrainCircuit,
   Bot,
-  MessageSquare
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import { api } from '../api/client.js';
 
 // Live days-remaining calculator
 function daysUntil(dateStr) {
@@ -31,6 +33,18 @@ export default function DashboardView({
   onOpenVoiceMentor,
   onOpenQuiz 
 }) {
+  const [parentReportState, setParentReportState] = useState({ loading: false, message: '', ok: null });
+
+  const handleSendParentReport = async () => {
+    setParentReportState({ loading: true, message: '', ok: null });
+    try {
+      const res = await api.sendParentReport();
+      setParentReportState({ loading: false, message: `Report sent to ${res.to}`, ok: true });
+    } catch (err) {
+      setParentReportState({ loading: false, message: err.message || 'Could not send report', ok: false });
+    }
+  };
+
   const skillData = [
     { skill: 'Data Structures', current: 75, target: 90 },
     { skill: 'AI / ML Basics', current: 82, target: 95 },
@@ -56,15 +70,44 @@ export default function DashboardView({
           </p>
         </div>
 
-        <button 
-          id="dashboard-ask-ai-btn"
-          className="btn-primary"
-          onClick={onOpenVoiceMentor}
-        >
-          <MessageSquare size={18} />
-          <span>Ask Eshva</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            id="dashboard-send-report-btn"
+            className="btn-secondary"
+            onClick={handleSendParentReport}
+            disabled={parentReportState.loading}
+            style={{ fontSize: '0.82rem' }}
+          >
+            <Send size={16} color="#3F7D58" />
+            <span>{parentReportState.loading ? 'Sending…' : 'Send Parent Report'}</span>
+          </button>
+
+          <button 
+            id="dashboard-ask-ai-btn"
+            className="btn-primary"
+            onClick={onOpenVoiceMentor}
+          >
+            <MessageSquare size={18} />
+            <span>Ask Eshva</span>
+          </button>
+        </div>
       </div>
+
+      {parentReportState.message && (
+        <div
+          style={{
+            padding: '10px 16px',
+            borderRadius: '10px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            background: parentReportState.ok ? '#E4EFE7' : '#FBEAEA',
+            color: parentReportState.ok ? '#275239' : '#A63A3A',
+            border: `1px solid ${parentReportState.ok ? '#C5DCCC' : '#EDB5B5'}`,
+          }}
+        >
+          {parentReportState.message}
+        </div>
+      )}
 
       {/* 2. Top 4 Metric Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>

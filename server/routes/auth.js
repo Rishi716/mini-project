@@ -23,33 +23,36 @@ const sanitize = (u) => ({
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name } = req.body;
-    if (!email || !password) {
+    const { email, password, name } = req.body || {};
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedPassword = typeof password === 'string' ? password : '';
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+    if (!normalizedEmail || !normalizedPassword) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
-    if (password.length < 6) {
+    if (normalizedPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     }
 
     let existing;
     let savedUser;
     if (isJsonMode()) {
-      existing = await JsonStore.findUserByEmail(email);
+      existing = await JsonStore.findUserByEmail(normalizedEmail);
       if (existing) return res.status(409).json({ error: 'An account with this email already exists. Please login.' });
-      const hashed = await bcrypt.hash(password, 10);
+      const hashed = await bcrypt.hash(normalizedPassword, 10);
       savedUser = await JsonStore.createUser({
-        email: email.toLowerCase(), password: hashed,
-        name: name || email.split('@')[0],
+        email: normalizedEmail, password: hashed,
+        name: normalizedName || normalizedEmail.split('@')[0],
         stage: 'Class 11-12', targetDomain: 'Computer Science & AI',
         interests: ['Coding', 'Artificial Intelligence', 'Mathematics'],
         parentName: '', parentEmail: '',
       });
     } else {
-      existing = await User.findOne({ email: email.toLowerCase() });
+      existing = await User.findOne({ email: normalizedEmail });
       if (existing) return res.status(409).json({ error: 'An account with this email already exists. Please login.' });
-      const hashed = await bcrypt.hash(password, 10);
+      const hashed = await bcrypt.hash(normalizedPassword, 10);
       savedUser = await User.create({
-        email: email.toLowerCase(), password: hashed, name: name || email.split('@')[0],
+        email: normalizedEmail, password: hashed, name: normalizedName || normalizedEmail.split('@')[0],
       });
     }
 
@@ -63,22 +66,24 @@ router.post('/register', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
+    const { email, password } = req.body || {};
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedPassword = typeof password === 'string' ? password : '';
+    if (!normalizedEmail || !normalizedPassword) {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
     let user;
     if (isJsonMode()) {
-      user = await JsonStore.findUserByEmail(email);
+      user = await JsonStore.findUserByEmail(normalizedEmail);
     } else {
-      user = await User.findOne({ email: email.toLowerCase() });
+      user = await User.findOne({ email: normalizedEmail });
     }
 
     if (!user) {
       return res.status(401).json({ error: 'No account found with this email. Please sign up first.' });
     }
-    const ok = await bcrypt.compare(password, user.password);
+    const ok = await bcrypt.compare(normalizedPassword, user.password);
     if (!ok) {
       return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }

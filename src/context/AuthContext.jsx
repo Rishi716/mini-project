@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../api/client';
 
 const AuthContext = createContext(null);
@@ -8,6 +8,8 @@ export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => api.token());
   const [status, setStatus] = useState('loading'); // 'loading' | 'authenticated' | 'guest'
 
+  const skipProfileValidation = useRef(false);
+
   const setToken = useCallback((t) => {
     api.setToken(t);
     setTokenState(t);
@@ -16,6 +18,11 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!token) {
       setStatus('guest');
+      return;
+    }
+    if (skipProfileValidation.current) {
+      skipProfileValidation.current = false;
+      setStatus('authenticated');
       return;
     }
     let cancelled = false;
@@ -36,6 +43,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const { token: t, user: u } = await api.login({ email, password });
+    skipProfileValidation.current = true;
     setToken(t);
     setUser(u);
     setStatus('authenticated');
@@ -44,6 +52,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (data) => {
     const { token: t, user: u } = await api.register(data);
+    skipProfileValidation.current = true;
     setToken(t);
     setUser(u);
     setStatus('authenticated');

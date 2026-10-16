@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 function getToken() {
   return localStorage.getItem('career_genai_token') || '';
@@ -29,10 +29,11 @@ async function request(method, path, body, { auth = true, formData = false } = {
     }
     return data;
   } catch (err) {
-    if (err.status === 401 && auth && path !== '/api/auth/login') {
+    if (err.status === 401 && auth) {
       setToken('');
       window.dispatchEvent(new CustomEvent('auth:logout'));
     }
+    if (!err.status) err.message = 'Unable to connect to the server. Please try again.';
     throw err;
   }
 }
@@ -57,6 +58,9 @@ export const api = {
   updateTasks: (tasks) => request('PUT', '/api/progress/tasks', { tasks }),
   saveQuizScore: (data) => request('POST', '/api/progress/quiz', data),
   saveAtsScore: (data) => request('POST', '/api/progress/ats', data),
+
+  // Reports (Gmail to parent)
+  sendParentReport: () => request('POST', '/api/reports/send'),
 
   token: getToken,
   setToken,

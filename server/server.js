@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import profileRoutes from './routes/profile.js';
 import progressRoutes from './routes/progress.js';
+import reportsRoutes from './routes/reports.js';
 import { authMiddleware } from './middleware/auth.js';
 import { loadProfileMiddleware } from './middleware/profile.js';
 import { getGeminiReply } from './services/geminiService.js';
@@ -24,8 +25,18 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const configuredOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin || configuredOrigins.includes('*') || configuredOrigins.includes(origin)) return true;
+  return /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin);
+};
+
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || '*',
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -41,6 +52,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Public anonymous AI endpoint (optional — for use without login)
 app.post('/api/ai/chat', loadProfileMiddleware, async (req, res) => {

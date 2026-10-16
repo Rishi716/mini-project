@@ -14,12 +14,18 @@ export default function AuthModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    const email = form.email.trim().toLowerCase();
+    const name = form.name.trim();
+    if (mode === 'register' && !name) {
+      setError('Full name is required.');
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'login') {
-        await login(form.email, form.password);
+        await login(email, form.password);
       } else {
-        await register({ email: form.email, password: form.password, name: form.name });
+        await register({ email, password: form.password, name });
       }
       onClose();
     } catch (err) {
@@ -91,6 +97,7 @@ export default function AuthModal({ isOpen, onClose }) {
               <label style={labelStyle}>Full Name</label>
               <input
                 type="text"
+                required
                 placeholder="e.g. Adarsh Kumar"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}

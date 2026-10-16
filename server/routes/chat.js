@@ -4,6 +4,7 @@ import { ChatMessage, SafetyReport } from '../models/Chat.js';
 import { User } from '../models/User.js';
 import { JsonStore, isJsonMode } from '../config/store.js';
 import { getGeminiReply } from '../services/geminiService.js';
+import { sendGmail, isGmailEnabled, safetyAlertHTML } from '../services/gmailService.js';
 
 const router = Router();
 
@@ -103,6 +104,29 @@ router.post('/', authMiddleware, async (req, res) => {
 
       const warningText = `⚠️ **Eshva Safety Alert**: I noticed your message contained inappropriate content. I'm here to help with your career and studies only. This incident has been automatically reported to your parent/guardian.\n\nPlease remember — this is a safe, academic mentoring space. Let's focus on your goals! 🌿`;
 
+      // Email the safety report to the parent via the Gmail API
+      let emailStatus = 'unavailable';
+      const parentEmail = user?.parentEmail;
+      if (isGmailEnabled() && parentEmail && parentEmail.includes('@')) {
+        try {
+          await sendGmail({
+            to: parentEmail,
+            subject: `⚠️ Safety Alert — ${profile.name} (Career GenAI)`,
+            html: safetyAlertHTML({
+              studentName: profile.name,
+              parentName: user?.parentName,
+              flaggedWords,
+              originalMessage: text,
+              timestamp: ts,
+            }),
+          });
+          emailStatus = 'mailed';
+        } catch (emailErr) {
+          console.error('Failed to email safety report:', emailErr.message);
+          emailStatus = 'failed';
+        }
+      }
+
       if (isJsonMode()) {
         await JsonStore.createChatMessage({ userId: req.userId, sender: 'ai', text: warningText, isWarning: true });
       } else {
@@ -115,6 +139,7 @@ router.post('/', authMiddleware, async (req, res) => {
           id: report._id, timestamp: ts, parentName: report.parentName,
           parentEmail: report.parentEmail, flaggedWords,
         },
+        emailStatus,
       });
     }
 
